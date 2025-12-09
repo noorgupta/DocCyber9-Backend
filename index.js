@@ -17,10 +17,12 @@ const multer = require('multer');
 const app = express();
 
 // CORS - allow the Vite dev server origin (supports both 5173 and 5174)
-app.use(cors({ 
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
-  credentials: true 
-}));
+app.use(
+  cors({
+    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    credentials: true,
+  })
+);
 
 // JSON body parsing
 // Increase JSON body limit a bit to be safe, but use multer for file uploads
@@ -28,10 +30,15 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
 // Multer in-memory storage for file uploads
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 // MongoDB connection details
-const MONGO_URL = process.env.MONGO_URL || 'mongodb+srv://noorgupta24_db_user:8lJezeNnsAJgrstp@cluster0.rehreru.mongodb.net/?appName=Cluster0';
+const MONGO_URL =
+  process.env.MONGO_URL ||
+  'mongodb+srv://noorgupta24_db_user:8lJezeNnsAJgrstp@cluster0.rehreru.mongodb.net/?appName=Cluster0';
 const DB_NAME = process.env.DB_NAME || 'ChronoSealDB';
 const USERS_COLLECTION = 'users';
 const DOCUMENTS_COLLECTION = 'documents';
@@ -52,12 +59,12 @@ async function connectToMongo() {
   dbClient = new MongoClient(MONGO_URL);
   await dbClient.connect();
   db = dbClient.db(DB_NAME);
-  
+
   // Create indexes
   await db.collection(USERS_COLLECTION).createIndex({ email: 1 }, { unique: true });
   await db.collection(DOCUMENTS_COLLECTION).createIndex({ userId: 1 });
   await db.collection(DOCUMENTS_COLLECTION).createIndex({ createdAt: -1 });
-  
+
   return { dbClient, db };
 }
 
@@ -66,7 +73,10 @@ function saltedHash(text, salt) {
   // Support both string and Buffer inputs
   if (Buffer.isBuffer(text)) {
     // Prepend salt as UTF-8 bytes to buffer
-    return crypto.createHash('sha256').update(Buffer.concat([Buffer.from(String(salt), 'utf8'), text])).digest('hex');
+    return crypto
+      .createHash('sha256')
+      .update(Buffer.concat([Buffer.from(String(salt), 'utf8'), text]))
+      .digest('hex');
   }
 
   if (typeof text !== 'string') text = String(text ?? '');
@@ -77,48 +87,56 @@ function saltedHash(text, salt) {
 async function authenticateToken(req, res, next) {
   try {
     const authHeader = req.headers['authorization'];
-    
-  // Minimal auth header presence check (no verbose logging here)
-    
+
     if (!authHeader) {
-      return res.status(401).json({ success: false, message: 'Authorization header required.' });
+      return res
+        .status(401)
+        .json({ success: false, message: 'Authorization header required.' });
     }
 
     // Extract token from "Bearer TOKEN" format
     const parts = authHeader.split(' ');
     if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      return res.status(401).json({ success: false, message: 'Invalid authorization header format. Use: Bearer <token>' });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid authorization header format. Use: Bearer <token>',
+      });
     }
 
     const token = parts[1];
-    
+
     if (!token) {
-      return res.status(401).json({ success: false, message: 'Access token required.' });
+      return res
+        .status(401)
+        .json({ success: false, message: 'Access token required.' });
     }
 
-    // Verify token synchronously for better error handling
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      
-  // Token verified — attach user info to request (no verbose logging)
-      
+
       // Attach user info to request
       req.user = {
         userId: decoded.userId,
         email: decoded.email,
-        id: decoded.userId // Alias for compatibility
+        id: decoded.userId, // Alias for compatibility
       };
-      
+
       next();
     } catch (jwtError) {
       console.error('❌ JWT Verification Error:', jwtError.message);
-      
+
       if (jwtError.name === 'TokenExpiredError') {
-        return res.status(403).json({ success: false, message: 'Token expired. Please login again.' });
+        return res
+          .status(403)
+          .json({ success: false, message: 'Token expired. Please login again.' });
       } else if (jwtError.name === 'JsonWebTokenError') {
-        return res.status(403).json({ success: false, message: 'Invalid token. Please login again.' });
+        return res
+          .status(403)
+          .json({ success: false, message: 'Invalid token. Please login again.' });
       } else {
-        return res.status(403).json({ success: false, message: 'Token verification failed.' });
+        return res
+          .status(403)
+          .json({ success: false, message: 'Token verification failed.' });
       }
     }
   } catch (err) {
@@ -133,10 +151,10 @@ async function authenticateToken(req, res, next) {
 
 // GET / - Simple health check
 app.get('/', (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     message: 'ChronoSeal Doc-Audit MVP Backend is running!',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -152,23 +170,34 @@ app.post('/auth/signup', async (req, res) => {
 
     // Validation
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required.' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Email and password are required.' });
     }
 
     if (typeof email !== 'string' || !email.includes('@')) {
-      return res.status(400).json({ success: false, message: 'Invalid email format.' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Invalid email format.' });
     }
 
     if (typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters.',
+      });
     }
 
     await connectToMongo();
 
     // Check if user already exists
-    const existingUser = await db.collection(USERS_COLLECTION).findOne({ email: email.toLowerCase() });
+    const existingUser = await db
+      .collection(USERS_COLLECTION)
+      .findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      return res.status(409).json({ success: false, message: 'User with this email already exists.' });
+      return res
+        .status(409)
+        .json({ success: false, message: 'User with this email already exists.' });
     }
 
     // Hash password
@@ -187,10 +216,10 @@ app.post('/auth/signup', async (req, res) => {
     // Generate JWT token with explicit userId
     const userId = result.insertedId.toString();
     const token = jwt.sign(
-      { 
+      {
         userId: userId,
         email: newUser.email,
-        id: userId // Alias for compatibility
+        id: userId, // Alias for compatibility
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRY }
@@ -210,7 +239,9 @@ app.post('/auth/signup', async (req, res) => {
     });
   } catch (err) {
     console.error('Error in /auth/signup:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error.' });
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal server error.' });
   }
 });
 
@@ -222,30 +253,38 @@ app.post('/auth/login', async (req, res) => {
 
     // Validation
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required.' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Email and password are required.' });
     }
 
     await connectToMongo();
 
     // Find user
-    const user = await db.collection(USERS_COLLECTION).findOne({ email: email.toLowerCase() });
+    const user = await db
+      .collection(USERS_COLLECTION)
+      .findOne({ email: email.toLowerCase() });
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+      return res
+        .status(401)
+        .json({ success: false, message: 'Invalid email or password.' });
     }
 
     // Verify password
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+      return res
+        .status(401)
+        .json({ success: false, message: 'Invalid email or password.' });
     }
 
     // Generate JWT token with explicit userId
     const userId = user._id.toString();
     const token = jwt.sign(
-      { 
+      {
         userId: userId,
         email: user.email,
-        id: userId // Alias for compatibility
+        id: userId, // Alias for compatibility
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRY }
@@ -265,7 +304,9 @@ app.post('/auth/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Error in /auth/login:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error.' });
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal server error.' });
   }
 });
 
@@ -277,83 +318,105 @@ app.post('/auth/login', async (req, res) => {
 // Body: { documentText }
 // Headers: Authorization: Bearer <token>
 // Accept either JSON { documentText } OR multipart form with file field 'file'
-app.post('/document/store', authenticateToken, upload.single('file'), async (req, res) => {
-  try {
-    // documentText may come in body (string) or file buffer in req.file
-    let documentContent = null;
-    let originalTextForComparison = null;
+app.post(
+  '/document/store',
+  authenticateToken,
+  upload.single('file'),
+  async (req, res) => {
+    try {
+      // documentText may come in body (string) or file buffer in req.file
+      let documentContent = null;
+      let originalTextForComparison = null;
 
-    if (req.file && req.file.buffer) {
-      // Use the raw file buffer for hashing
-      documentContent = req.file.buffer;
-      // Store text version for AI comparison (if it's text-based)
-      try {
-        originalTextForComparison = req.file.buffer.toString('utf8');
-      } catch (e) {
-        // If it's binary, we can't do text comparison
-        originalTextForComparison = null;
+      if (req.file && req.file.buffer) {
+        // Use the raw file buffer for hashing
+        documentContent = req.file.buffer;
+        // Store text version for AI comparison (if it's text-based)
+        try {
+          originalTextForComparison = req.file.buffer.toString('utf8');
+        } catch (e) {
+          // If it's binary, we can't do text comparison
+          originalTextForComparison = null;
+        }
+      } else if (req.body && req.body.documentText) {
+        // Accept either raw string or base64 payload
+        documentContent = req.body.documentText;
+        originalTextForComparison = req.body.documentText;
       }
-    } else if (req.body && req.body.documentText) {
-      // Accept either raw string or base64 payload
-      documentContent = req.body.documentText;
-      originalTextForComparison = req.body.documentText;
+
+      if (!documentContent) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or missing document content. Provide file or documentText.',
+        });
+      }
+
+      await connectToMongo();
+
+      const salt = uuidv4();
+      const hash = saltedHash(documentContent, salt);
+      const createdAt = new Date();
+
+      const payload = {
+        userId: req.user.userId, // From JWT token
+        hash,
+        salt,
+        createdAt,
+        // Store original text for AI tamper detection (optional, only if text-based)
+        originalText: originalTextForComparison || null,
+      };
+
+      const result = await db.collection(DOCUMENTS_COLLECTION).insertOne(payload);
+
+      return res.json({
+        success: true,
+        id: result.insertedId.toString(),
+        message: 'Document hash stored successfully.',
+      });
+    } catch (err) {
+      console.error('Error in /document/store:', err);
+      return res
+        .status(500)
+        .json({ success: false, message: 'Internal server error.' });
     }
-
-    if (!documentContent) {
-      return res.status(400).json({ success: false, message: 'Invalid or missing document content. Provide file or documentText.' });
-    }
-
-    await connectToMongo();
-
-    const salt = uuidv4();
-    const hash = saltedHash(documentContent, salt);
-    const createdAt = new Date();
-
-    const payload = {
-      userId: req.user.userId, // From JWT token
-      hash,
-      salt,
-      createdAt,
-      // Store original text for AI tamper detection (optional, only if text-based)
-      originalText: originalTextForComparison || null,
-    };
-
-    const result = await db.collection(DOCUMENTS_COLLECTION).insertOne(payload);
-
-    return res.json({
-      success: true,
-      id: result.insertedId.toString(),
-      message: 'Document hash stored successfully.',
-    });
-  } catch (err) {
-    console.error('Error in /document/store:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error.' });
   }
-});
+);
 
 // GET /document/:id
 // Returns document metadata (hash, salt, createdAt)
 app.get('/document/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params || {};
-    if (!id) return res.status(400).json({ success: false, message: 'Missing document ID in URL.' });
+    if (!id)
+      return res
+        .status(400)
+        .json({ success: false, message: 'Missing document ID in URL.' });
 
     await connectToMongo();
 
     let doc;
     try {
-      doc = await db.collection(DOCUMENTS_COLLECTION).findOne({ _id: new ObjectId(id) });
+      doc = await db
+        .collection(DOCUMENTS_COLLECTION)
+        .findOne({ _id: new ObjectId(id) });
     } catch (e) {
-      return res.status(400).json({ success: false, message: 'Invalid document ID format.' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Invalid document ID format.' });
     }
 
     if (!doc) {
-      return res.status(404).json({ success: false, message: 'Document not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: 'Document not found.' });
     }
 
     // Ensure the requesting user owns this document
     if (doc.userId !== req.user.userId) {
-      return res.status(403).json({ success: false, message: 'Access denied. This document belongs to another user.' });
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. This document belongs to another user.',
+      });
     }
 
     return res.json({
@@ -361,11 +424,16 @@ app.get('/document/:id', authenticateToken, async (req, res) => {
       id: doc._id.toString(),
       hash: doc.hash,
       salt: doc.salt,
-      createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : new Date(doc.createdAt).toISOString(),
+      createdAt:
+        doc.createdAt instanceof Date
+          ? doc.createdAt.toISOString()
+          : new Date(doc.createdAt).toISOString(),
     });
   } catch (err) {
     console.error('Error in GET /document/:id:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error.' });
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal server error.' });
   }
 });
 
@@ -376,24 +444,30 @@ app.get('/documents', authenticateToken, async (req, res) => {
     const limit = parseInt(req.query.limit || '10', 10);
     await connectToMongo();
 
-    const docsCursor = db.collection(DOCUMENTS_COLLECTION)
+    const docsCursor = db
+      .collection(DOCUMENTS_COLLECTION)
       .find({ userId: req.user.userId })
       .sort({ createdAt: -1 })
       .limit(limit);
 
     const docs = await docsCursor.toArray();
 
-    const sanitized = docs.map(d => ({
+    const sanitized = docs.map((d) => ({
       id: d._id.toString(),
       hash: d.hash,
       salt: d.salt,
-      createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : new Date(d.createdAt).toISOString(),
+      createdAt:
+        d.createdAt instanceof Date
+          ? d.createdAt.toISOString()
+          : new Date(d.createdAt).toISOString(),
     }));
 
     return res.json({ success: true, documents: sanitized });
   } catch (err) {
     console.error('Error in GET /documents:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error.' });
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal server error.' });
   }
 });
 
@@ -401,95 +475,122 @@ app.get('/documents', authenticateToken, async (req, res) => {
 // Body: { documentText } OR multipart form with file field 'file'
 // Headers: Authorization: Bearer <token>
 // Response: { success, match, message, id, createdAt, auditTrail }
-app.post('/document/verify/:id', authenticateToken, upload.single('file'), async (req, res) => {
-  try {
-    const { id } = req.params || {};
-    // No verbose debug logging here — keep responses clean
-    // Accept documentText in body or file buffer
-    let documentText = null;
-    if (req.file && req.file.buffer) {
-      documentText = req.file.buffer;
-    } else if (req.body && typeof req.body.documentText === 'string') {
-      documentText = req.body.documentText;
-    }
-
-    if (!id) {
-      return res.status(400).json({ success: false, match: false, message: 'Missing document ID in URL.' });
-    }
-
-    if (!documentText) {
-      return res.status(400).json({ success: false, match: false, message: 'Invalid or missing document content. Provide file or documentText.' });
-    }
-
-    await connectToMongo();
-
-    let doc;
+app.post(
+  '/document/verify/:id',
+  authenticateToken,
+  upload.single('file'),
+  async (req, res) => {
     try {
-      doc = await db.collection(DOCUMENTS_COLLECTION).findOne({ _id: new ObjectId(id) });
-    } catch (e) {
-      return res.status(400).json({ success: false, match: false, message: 'Invalid document ID format.' });
+      const { id } = req.params || {};
+
+      // Accept documentText in body or file buffer
+      let documentText = null;
+      if (req.file && req.file.buffer) {
+        documentText = req.file.buffer;
+      } else if (req.body && typeof req.body.documentText === 'string') {
+        documentText = req.body.documentText;
+      }
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          match: false,
+          message: 'Missing document ID in URL.',
+        });
+      }
+
+      if (!documentText) {
+        return res.status(400).json({
+          success: false,
+          match: false,
+          message:
+            'Invalid or missing document content. Provide file or documentText.',
+        });
+      }
+
+      await connectToMongo();
+
+      let doc;
+      try {
+        doc = await db
+          .collection(DOCUMENTS_COLLECTION)
+          .findOne({ _id: new ObjectId(id) });
+      } catch (e) {
+        return res.status(400).json({
+          success: false,
+          match: false,
+          message: 'Invalid document ID format.',
+        });
+      }
+
+      if (!doc) {
+        return res.status(404).json({
+          success: false,
+          match: false,
+          message: 'Document not found.',
+        });
+      }
+
+      // Check if document belongs to the authenticated user
+      if (doc.userId !== req.user.userId) {
+        return res.status(403).json({
+          success: false,
+          match: false,
+          message: 'Access denied. This document belongs to another user.',
+        });
+      }
+
+      const recalculated = saltedHash(documentText, doc.salt);
+      const match = recalculated === doc.hash;
+
+      const message = match
+        ? 'Hashes match. Document integrity verified.'
+        : 'Hashes do not match. Document may have been altered.';
+
+      // Audit trail
+      const auditTrail = {
+        documentId: doc._id.toString(),
+        userId: doc.userId,
+        originalHash: doc.hash,
+        submittedHash: recalculated,
+        match,
+        timestamp: new Date().toISOString(),
+        originalCreatedAt:
+          doc.createdAt instanceof Date
+            ? doc.createdAt.toISOString()
+            : new Date(doc.createdAt).toISOString(),
+      };
+
+      return res.json({
+        success: true,
+        match,
+        message,
+        id: doc._id.toString(),
+        createdAt:
+          doc.createdAt instanceof Date
+            ? doc.createdAt.toISOString()
+            : new Date(doc.createdAt).toISOString(),
+        auditTrail,
+      });
+    } catch (err) {
+      console.error('Error in /document/verify/:id:', err);
+      return res.status(500).json({
+        success: false,
+        match: false,
+        message: 'Internal server error.',
+      });
     }
-
-    if (!doc) {
-      return res.status(404).json({ success: false, match: false, message: 'Document not found.' });
-    }
-
-    // Check if document belongs to the authenticated user
-    if (doc.userId !== req.user.userId) {
-      return res.status(403).json({ success: false, match: false, message: 'Access denied. This document belongs to another user.' });
-    }
-
-  const recalculated = saltedHash(documentText, doc.salt);
-    const match = recalculated === doc.hash;
-
-    const message = match
-      ? 'Hashes match. Document integrity verified.'
-      : 'Hashes do not match. Document may have been altered.';
-
-    // Audit trail
-    const auditTrail = {
-      documentId: doc._id.toString(),
-      userId: doc.userId,
-      originalHash: doc.hash,
-      submittedHash: recalculated,
-      match,
-      timestamp: new Date().toISOString(),
-      originalCreatedAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : new Date(doc.createdAt).toISOString(),
-    };
-
-    return res.json({
-      success: true,
-      match,
-      message,
-      id: doc._id.toString(),
-      createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : new Date(doc.createdAt).toISOString(),
-      auditTrail,
-    });
-  } catch (err) {
-    console.error('Error in /document/verify/:id:', err);
-    return res.status(500).json({ success: false, match: false, message: 'Internal server error.' });
   }
-});
+);
 
-// Export app and helper functions for tests
-module.exports = { app, connectToMongo, saltedHash, authenticateToken };
+// ========================================
+// EXPORTS FOR VERCEL + TESTS
+// ========================================
 
-// Start server
-const PORT = process.env.PORT || 3000;
+// Export the Express app as the default export (Vercel needs this)
+module.exports = app;
 
-// Initialize MongoDB connection and start Express server
-connectToMongo()
-  .then(() => {
-    console.log(`✅ Connected to MongoDB at ${MONGO_URL}`);
-    console.log(`📊 Database: ${DB_NAME}`);
-    app.listen(PORT, () => {
-      console.log(`🔐 ChronoSeal Doc-Audit MVP Backend running on http://localhost:${PORT}`);
-      console.log(`🔑 JWT Authentication enabled`);
-      console.log(`📝 Protected routes: /document/store, /document/verify/:id`);
-    });
-  })
-  .catch((err) => {
-    console.error('❌ Failed to connect to MongoDB:', err);
-    process.exit(1);
-  });
-
+// Optional: attach helpers for tests/tools without breaking Vercel
+module.exports.connectToMongo = connectToMongo;
+module.exports.saltedHash = saltedHash;
+module.exports.authenticateToken = authenticateToken;
