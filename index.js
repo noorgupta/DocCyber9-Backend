@@ -11,7 +11,11 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { MongoClient, ObjectId } = require('mongodb');
-const { v4: uuidv4 } = require('uuid');
+let uuidv4;
+(async () => {
+  const { v4 } = await import('uuid');
+  uuidv4 = v4;
+})();
 const multer = require('multer');
 
 const app = express();
