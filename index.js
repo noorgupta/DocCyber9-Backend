@@ -52,6 +52,7 @@ async function connectToMongo() {
   dbClient = new MongoClient(MONGO_URL);
   await dbClient.connect();
   db = dbClient.db(DB_NAME);
+  console.log(`✅ Connected to MongoDB: ${DB_NAME}`);
   return { dbClient, db };
 }
 
@@ -154,14 +155,5 @@ app.post('/document/store', authenticateToken, async (req, res) => {
   }
 });
 
-// ✅ Export app for Vercel
-const PORT = process.env.PORT || 3000;
-connectToMongo()
-  .then(() => {
-    console.log(`✅ Connected to MongoDB at ${MONGO_URL}`);
-    module.exports = app;
-  })
-  .catch(err => {
-    console.error('❌ MongoDB connection failed:', err);
-    process.exit(1);
-  });
+// ✅ Export app for Vercel (top-level)
+module.exports = app;
