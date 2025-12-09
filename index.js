@@ -5,7 +5,15 @@
  */
 
 const express = require('express');
-const cors = require('cors');
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://doc-cyber9-frontend.vercel.app'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+}));
 const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
