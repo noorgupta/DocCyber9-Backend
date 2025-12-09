@@ -1,0 +1,6 @@
+nohup: ignoring input
+✅ Connected to MongoDB at mongodb+srv://noorgupta24_db_user:8lJezeNnsAJgrstp@cluster0.rehreru.mongodb.net/?appName=Cluster0
+📊 Database: ChronoSealDB
+🔐 ChronoSeal Doc-Audit MVP Backend running on http://localhost:3000
+🔑 JWT Authentication enabled
+📝 Protected routes: /document/store, /document/verify/:id

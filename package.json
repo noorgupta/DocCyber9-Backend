@@ -1,0 +1,30 @@
+{
+  "name": "securesign-doc-audit-backend",
+  "version": "1.0.0",
+  "description": "Backend API for SecureSign Doc-Audit MVP - document integrity verification using SHA-256",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "start:mock": "node start-with-mock.js"
+  },
+  "keywords": [
+    "sha256",
+    "hash",
+    "document",
+    "audit",
+    "integrity"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.20.0",
+    "multer": "^2.0.2",
+    "uuid": "^13.0.0"
+  }
+}

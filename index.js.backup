@@ -1,0 +1,141 @@
+/*
+ * SecureSign Doc-Audit MVP - Backend V2 (index.js)
+ * Node.js + Express server with salted SHA-256 hashing and MongoDB persistence.
+ * Does NOT call app.listen here (per request).
+ */
+
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const crypto = require('crypto');
+const { MongoClient, ObjectId } = require('mongodb');
+const { v4: uuidv4 } = require('uuid');
+
+const app = express();
+
+// CORS - allow the Vite dev server origin
+app.use(cors({ origin: 'http://localhost:5173' }));
+
+// JSON body parsing
+app.use(bodyParser.json());
+
+// MongoDB connection details
+const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017';
+const DB_NAME = process.env.DB_NAME || 'SecureSignDB';
+const COLLECTION = 'documents';
+
+let dbClient;
+let db;
+
+async function connectToMongo() {
+  if (dbClient && db) return { dbClient, db };
+  dbClient = new MongoClient(MONGO_URL);
+  await dbClient.connect();
+  db = dbClient.db(DB_NAME);
+  // Ensure an index on createdAt for audit queries
+  await db.collection(COLLECTION).createIndex({ createdAt: -1 });
+  return { dbClient, db };
+}
+
+// Helper: generate salted SHA-256 hash
+function saltedHash(text, salt) {
+  if (typeof text !== 'string') text = String(text ?? '');
+  // Combine salt and text deterministically
+  return crypto.createHash('sha256').update(salt + text, 'utf8').digest('hex');
+}
+
+// Route: POST /api/store
+// Body: { documentText: "..." }
+// Stores: { _id, hash, salt, createdAt }
+app.post('/api/store', async (req, res) => {
+  try {
+    const { documentText } = req.body || {};
+    if (!documentText || typeof documentText !== 'string') {
+      return res.status(400).json({ success: false, message: 'Invalid or missing "documentText" in request body.' });
+    }
+
+    await connectToMongo();
+
+    const salt = uuidv4();
+    const hash = saltedHash(documentText, salt);
+    const createdAt = new Date();
+
+    const payload = { hash, salt, createdAt };
+
+    const result = await db.collection(COLLECTION).insertOne(payload);
+
+    return res.json({ success: true, id: result.insertedId.toString(), message: 'Hash stored successfully.' });
+  } catch (err) {
+    console.error('Error in /api/store:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+// Route: POST /api/verify/:id
+// Body: { documentText: "..." }
+// Response: { success, match, message, id, createdAt }
+app.post('/api/verify/:id', async (req, res) => {
+  try {
+    const { id } = req.params || {};
+    const { documentText } = req.body || {};
+
+    if (!id) {
+      return res.status(400).json({ success: false, match: false, message: 'Missing ID in URL.' });
+    }
+
+    if (typeof documentText !== 'string') {
+      return res.status(400).json({ success: false, match: false, message: 'Invalid or missing "documentText" in request body.' });
+    }
+
+    await connectToMongo();
+
+    let doc;
+    try {
+      doc = await db.collection(COLLECTION).findOne({ _id: new ObjectId(id) });
+    } catch (e) {
+      return res.status(400).json({ success: false, match: false, message: 'Invalid ID format.' });
+    }
+
+    if (!doc) {
+      return res.status(404).json({ success: false, match: false, message: 'ID not found.' });
+    }
+
+    const recalculated = saltedHash(documentText, doc.salt);
+    const match = recalculated === doc.hash;
+
+    const message = match
+      ? 'Hashes match. Document integrity verified.'
+      : 'Hashes do not match. Document may have been altered.';
+
+    return res.json({
+      success: true,
+      match,
+      message,
+      id: doc._id.toString(),
+      createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : new Date(doc.createdAt).toISOString(),
+    });
+  } catch (err) {
+    console.error('Error in /api/verify/:id:', err);
+    return res.status(500).json({ success: false, match: false, message: 'Internal server error.' });
+  }
+});
+
+// Export app and helper for tests
+module.exports = { app, connectToMongo, saltedHash };
+
+// Start server
+const PORT = process.env.PORT || 3000;
+
+// Initialize MongoDB connection and start Express server
+connectToMongo()
+  .then(() => {
+    console.log(`✅ Connected to MongoDB at ${MONGO_URL}`);
+    app.listen(PORT, () => {
+      console.log(`🚀 SecureSign Doc-Audit V2 Backend running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Failed to connect to MongoDB:', err);
+    process.exit(1);
+  });
+
