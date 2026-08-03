@@ -314,6 +314,10 @@ app.post('/auth/login', async (req, res) => {
  * Protected route - requires JWT authentication
  */
 app.post('/document/store', authenticateToken, async (req, res) => {
+  console.log("========== STORE REQUEST ==========");
+console.log("Content-Type:", req.headers["content-type"]);
+console.log("Body:", req.body);
+console.log("===================================");
   try {
     const { documentText, fileName, fileType } = req.body;
     const userId = req.user.id;
