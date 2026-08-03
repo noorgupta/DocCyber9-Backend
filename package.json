@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "Backend API for SecureSign Doc-Audit MVP - document integrity verification using SHA-256",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "dev": "node index.js",
-    "start:mock": "node start-with-mock.js"
-  },
+ "scripts": {
+  "start": "node eminent-v3-server.js",
+  "dev": "node eminent-v3-server.js",
+  "start:mock": "node start-with-mock.js"
+},
   "keywords": [
     "sha256",
     "hash",
