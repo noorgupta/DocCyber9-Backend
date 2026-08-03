@@ -31,7 +31,24 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: function (origin, callback) {
+    // Allow requests without an Origin (Postman, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      "http://localhost:5173",
+      "https://doc-cyber9-frontend.vercel.app"
+    ];
+
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith(".vercel.app")
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
   credentials: true
 }));
 app.use(bodyParser.json({ limit: '50mb' })); // Support large Base64 files
