@@ -4,8 +4,6 @@ REST API powering the **DocCyber Document Integrity Verification System**. It pr
 
 ## Live API
 
-**Base URL:** https://doccyber9-backend.onrender.com
-
 API Information:
 https://doccyber9-backend.onrender.com/api/info
 
