@@ -153,6 +153,11 @@ function authenticateToken(req, res, next) {
  * POST /auth/signup
  * Register new user with bcrypt password hashing
  */
+
+app.use((req, res, next) => {
+  console.log("REQUEST:", req.method, req.path);
+  next();
+});
 app.post('/auth/signup', async (req, res) => {
   try {
     const { name, email, password } = req.body;
