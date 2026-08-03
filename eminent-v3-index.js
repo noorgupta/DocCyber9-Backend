@@ -12,6 +12,7 @@
  * - Complete Audit Trail
  * ═══════════════════════════════════════════════════════════════════
  */
+require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
@@ -37,9 +38,8 @@ app.use(bodyParser.json({ limit: '50mb' })); // Support large Base64 files
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 // Constants
-const MONGODB_URI = 'mongodb://localhost:27017';
-const DB_NAME = 'EminentDB';
-const JWT_SECRET = 'eminent-v3-secret-key-change-in-production';
+const MONGODB_URI = process.env.MONGODB_URI;
+const DB_NAME = process.env.DB_NAME || 'ChronoSealDB';const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRY = '7d';
 const BCRYPT_ROUNDS = 10;
 
@@ -358,6 +358,9 @@ app.post('/document/store', authenticateToken, async (req, res) => {
  */
 app.post('/document/verify/:id', authenticateToken, async (req, res) => {
   try {
+    console.log("✅ VERIFY ROUTE HIT");
+    console.log(req.params);
+    console.log(req.body);
     const { id } = req.params;
     const { documentText } = req.body;
     const userId = req.user.id;
